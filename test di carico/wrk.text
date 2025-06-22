@@ -1,0 +1,21 @@
+Running 30s test @ http://localhost:8080/
+  4 threads and 100 connections
+  2554015 requests in 30.10s, 338.56MB read
+Latency:       1.28ms
+Requests/sec:  78321.00
+Transfer/sec:  10.38MB
+
+Running 30s test @ http://localhost:8080/
+  4 threads and 1000 connections
+  2477696 requests in 30.10s, 328.45MB read
+Latency:       17.01ms
+Requests/sec:  75452.92
+Transfer/sec:  10.06MB
+
+Running 30s test @ http://localhost:8080/
+  4 threads and 10000 connections
+    Req/Sec    20.61k     0.99k   25.15k    73.75%
+  2468848 requests in 30.10s, 327.27MB read
+Latency:       61.78ms
+Requests/sec:  18268.50
+Transfer/sec:  8.41MB
