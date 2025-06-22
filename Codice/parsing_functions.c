@@ -6,7 +6,6 @@ int get_method(char message[], request *req, response *res){
     //Copia il metodo dal messaggio alla struttura request
     while(message[i] != ' '){
         if(i >= MAX_METHOD_LEN){
-            //printf("\n\nMethod too long\n\n");
             res->status_code = 400;
             return -1;
         }
@@ -18,7 +17,6 @@ int get_method(char message[], request *req, response *res){
 
     //Controlla che il metodo sia un metodo valido
     if((strcmp(req->method,"GET") != 0) && (strcmp(req->method,"POST") != 0) && (strcmp(req->method,"PUT") != 0) && (strcmp(req->method,"DELETE") != 0)){
-        //printf("\n\nWrong Method\n\n");
         res->status_code = 400;
         return -1;
     }
@@ -41,7 +39,6 @@ int get_uri(char message[], int i, request *req, response *res){
     req->uri[j] = '\0';
 
     if(strlen(req->uri) == 0){
-        //printf("\n\nNO URI\n\n");
         res->status_code = 400;
         return 1;
     }
@@ -54,7 +51,6 @@ int find_newline(char message[]){
     char *found;
 
     if((found = strstr(message, "\r\n")) == NULL){
-        //printf("\n\nNew Line\n\n");
         return 1;
     }
 
@@ -66,7 +62,6 @@ int find_host(char message[]){
     char *found;
     //La presenza dell'Host è obbligatoria secondo l'RFC2616
     if((found = strstr(message, "Host:")) == NULL){
-        //printf("\n\nNO HOST\n\n");
         return 1;
     }
 
@@ -77,9 +72,9 @@ int find_host(char message[]){
 int get_connection(char message[], request *req){
     char *found;
     int i;
+
     //Verifica la presenza di Connection
     found = strstr(message, "Connection:");
-    
     //Se presente viene copiato dal messaggio alla struttura request
     if(found != NULL){
         found += strlen("Connection:");
@@ -95,7 +90,6 @@ int get_connection(char message[], request *req){
 
         //Connection può essere solo "keep-alive" oppure "close"
         if((strcmp(req->connection,"keep-alive") != 0) && (strcmp(req->connection,"close") != 0)){
-            //printf("\n\nConnection: %s\n\n", req->connection);
             return 1;
         }
     }
@@ -113,17 +107,15 @@ int get_body(char message[], request *req){
     //Cerca il campo Content-Length all'interno del messaggio
     found = strstr(message, "Content-Length:");
 
-    //Se non presente viene restituito un messaggio di errore
+    //Se non presente, viene restituito un valore di errore
     if(found == NULL){
-        //printf("\n\nNO Content-Length\n\n");
         return 1;
     }
     //In caso contrario viene convertito in intero e salvato nella struttura request
     found += strlen("Content-Length:");
     req->content_length = atoi(found);
-    //Se minore o uguale a 0 risponde con un messaggio di errore
+    //Se minore o uguale a 0 viene restituito un valore di errore
     if(req->content_length <= 0){
-        //printf("\n\natoi\n\n");
         return 1;
     }
 
@@ -132,7 +124,6 @@ int get_body(char message[], request *req){
 
     //Se non presente viene restituito un messaggio di errore
     if(found == NULL){
-        //printf("\n\nNO Header End\n\n");
         return 1;
     }
     //Altrimenti viene copiato il contenuto del messaggio dopo l'header nella struttura request
@@ -145,15 +136,18 @@ int get_body(char message[], request *req){
     return 0;
 }
 
+//Copia il campo Authorization dal messaggio alla struttura request
 int get_authorization(char message[], request *req){
     char *found;
 
+    //Cerca il campo Authorization all'interno del messaggio
     if((found = strstr(message, "Authorization:")) !=  NULL){
         found += strlen("Authorization:");
         while(*found == ' ' || *found == '\t'){
             found++;
         }
         int i = 0;
+        //Se presente, lo schema di crittografia viene copiato nel campo auth_scheme della struttura request
         while(found[i] != '\r' && found[i] != ' ' && found[i] != '\n'){
             if(i >= MAX_AUTH_LEN){
                 return 1;
@@ -169,6 +163,7 @@ int get_authorization(char message[], request *req){
         }
 
         i = 0;
+        //Vengono copiate le credenziali dal messaggio al campo authorization della struttura request
         while(found[i] != '\r' && found[i] != ' ' && found[i] != '\n'){
             if(i >= MAX_AUTH_LEN){
                 return 1;
@@ -189,22 +184,27 @@ int get_authorization(char message[], request *req){
 //Effettua il parsing del messaggio
 int parse(char **message, request *req, response *res){
 
+    //Estrae il metodo dal messaggio
     int i = get_method(*message,req,res);
     if(i == -1){
         return 1;
     }
-    
+
+    //Estrae l'URI dal messaggio
     if(get_uri(*message,i,req,res)){
         return 1;
     }
 
+    //Cerca almeno un CRLF, un header Host e tenta di estrarre un header Connection
     if(find_newline(*message) || find_host(*message) || get_connection(*message,req)){
         res->status_code = 400;
         return 1;
     }
 
     char *found;
+    //Cerca la riga vuota che termina l'head della richiesta
     found = strstr(*message, "\r\n\r\n");
+    //In caso di errore restituisce un valore di errore e imposta il codice di stato della risposta
     if(found == NULL){
         res->status_code = 400;
         return 1;
@@ -232,6 +232,7 @@ int parse(char **message, request *req, response *res){
         *message = found;
     }
 
+    //Tenta di estrarre dal messaggio l'header Authorization
     if(get_authorization(*message,req)){
         res->status_code = 400;
         return 1;

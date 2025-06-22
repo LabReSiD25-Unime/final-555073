@@ -7,24 +7,24 @@ int open_file(char path[], char method[]){
     //I file di configurazione possono essere aperti solo in lettura
     if((found = strstr(path,"configuration/")) == NULL){
         if(!strcmp(method, "GET")){
-            //Apre il file descriptor del file che va letto
+            //Apre il file descriptor del file da leggere
             file_fd = open(path, O_RDONLY, 0644);
         }
         else if(!strcmp(method,"POST")){
-            //Apre il file descriptor in modalità append
+            //Apre il file descriptor del file da modificare
             file_fd = open(path, O_RDWR | O_APPEND | O_CREAT, 0644);
         }
         else if(!strcmp(method,"PUT")){
-            //Apre il file descriptor del file che va sovrascritto o creato
+            //Apre il file descriptor del file da creare o sovrascrivere
             file_fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         }
         else if(!strcmp(method,"DELETE")){
-            //Apre il file descriptor del file che va cancellato
+            //Apre il file descriptor del file da cancellare
             file_fd = open(path, O_RDWR, 0644);
         }
     }
     else{
-        //Apre il file descriptor del file di configurazione che va letto
+        //Apre il file descriptor del file di configurazione in lettura
         file_fd = open(path, O_RDONLY, 0644);
     }
 
@@ -37,10 +37,9 @@ int lock_file(struct flock *lock, int fd){
     lock->l_start = 0;
     lock->l_len = 0;
 
-    //Effettua il lock in lettura di un file
-    //F_SETLKW specifica che se il file è già sottoposto ad un lock invece di restituire errore il thread deve solo aspettare
+    //Effettua il lock di un file
+    //F_SETLKW specifica che se il file è già sottoposto ad un lock invece di restituire errore il thread dovrà attendere
     if(fcntl(fd, F_SETLKW ,lock) == -1){
-       //printf("\n\nCan't lock the file on write\n\n");
         close(fd);
         return 1;
     }
@@ -52,19 +51,16 @@ int lock_file(struct flock *lock, int fd){
 int unlock_file(struct flock *lock, int fd){
     lock->l_type = F_UNLCK;
     int ret = (fcntl(fd, F_SETLKW ,lock) == -1);
-    //if(ret)
-       //printf("\n\nCan't unlock the file\n\n");
     close(fd);
     return ret;
 }
 
-//Acquisisce il lock esclusivo su un file, vi scrive e poi rilascia il lock
+//Acquisisce il lock esclusivo su un file, vi scrive e rilascia il lock
 int write_with_lock(char path[], request *req, response *res){
     //Apre il fd del file
     int file_fd = open_file(path, req->method);
-    //In caso di errore restituisce un messaggio di errore
+    //In caso di errore restituisce un valore di errore e cambia il codice di stato della risposta
     if(file_fd < 0){
-       //printf("\n\nCan't open the file %s\n\n", path);
         res->status_code = 404;
         return 1;
     }
@@ -72,7 +68,7 @@ int write_with_lock(char path[], request *req, response *res){
     //Struttura per effettuare il lock di un file
     struct flock file_lock;
     file_lock.l_type = F_WRLCK;
-    //Effettua il lock esclusivo sul file, in caso di errore restituisce un messaggio di errore
+    //Effettua il lock esclusivo sul file
     if(lock_file(&file_lock, file_fd)){
         res->status_code = 500;
         return 1;
@@ -97,10 +93,8 @@ int write_with_lock(char path[], request *req, response *res){
 int read_with_lock(char path[], request *req, response *res){
     //Apre il fd del file
     int file_fd = open_file(path, req->method);
-
-    //In caso di errore restituisce un messaggio di errore
+    //In caso di errore restituisce un valore di errore e cambia il codice di stato della risposta
     if(file_fd < 0){
-        //printf("\n\nCan't open the file %s\n\n", path);
         res->status_code = 404;
         return 1;
     }
@@ -108,22 +102,21 @@ int read_with_lock(char path[], request *req, response *res){
     //Struttura per effettuare il lock di un file
     struct flock file_lock;
     file_lock.l_type = F_RDLCK;
-    //Effettua il lock non esclusivo sul file, in caso di errore restituisce un messaggio di errore
+    //Effettua il lock non esclusivo sul file,
     if(lock_file(&file_lock, file_fd)){
         res->status_code = 500;
         return 1;
     }
 
-    //Assegna a content_length il numero di byte del file
+    //Assegna a content_length il numero di byte del contenuto del file
     res->content_length = lseek(file_fd, 0, SEEK_END);
     lseek(file_fd, 0, SEEK_SET);
 
     //Alloca memoria per il contenuto della risposta
     res->content = malloc(res->content_length+1);
 
-    //In caso di errore restituisce un messaggio di errore
+    //In caso di errore restituisce un valore di errore e cambia il codice di stato della risposta
     if(res->content == NULL){
-        //printf("\n\nNot Enough Memory\n\n");
         res->status_code = 500;
         file_lock.l_type = F_UNLCK;
         fcntl(file_fd, F_SETLKW ,&file_lock);
@@ -155,14 +148,12 @@ int write_read_with_lock(char path[], request *req, response *res){
 }
 
 //Acquisisce il lock esclusivo su un file, effettua un unlink() sul file e rilascia il lock
-//QUesti tipo di cancellazione è asincrona in quanto il file verrà cancellato quando tutti i file descriptor ad esso associati verranno chiusi
+//Questo tipo di cancellazione è asincrona in quanto il file verrà cancellato solo quando tutti i file descriptor ad esso associati saranno chiusi
 int unlink_with_lock(char path[], request *req, response * res){
     //Apre il fd del file
     int file_fd = open_file(path, req->method);
-
-    //In caso di errore restituisce un messaggio di errore
+    //In caso di errore restituisce un valore di errore e cambia il codice di stato della risposta
     if(file_fd < 0){
-       //printf("\n\nCan't open the file %s\n\n", path);
         res->status_code = 404;
         return 1;
     }
@@ -170,14 +161,15 @@ int unlink_with_lock(char path[], request *req, response * res){
     //Struttura per effettuare il lock di un file
     struct flock file_lock;
     file_lock.l_type = F_WRLCK;
-    //Effettua il lock esclusivo sul file, in caso di errore restituisce un messaggio di errore
+    //Effettua il lock esclusivo sul file
     if(lock_file(&file_lock, file_fd)){
         res->status_code = 500;
         return 1;
     }
 
-    //Cancella il file, in maniera asincrona
+    //Controlla che il file esista ancora
     if(!access(path, F_OK)){
+        //Cancella il file, in modalità asincrona
         unlink(path);
     }
 

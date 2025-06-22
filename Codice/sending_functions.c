@@ -111,8 +111,6 @@ void http_send(response *res, int fd){
             sprintf(message, "HTTP/%1.1f %d %s\r\nConnection: %s\r\nContent-Type: text/html\r\nContent-Length: %ld\r\n\r\n%s", HTTP_VERSION, res->status_code, res->reason_phrase, res->connection, res->content_length, res->content);
     }
 
-    //printf("%s\n",message);
-
     //Invia il messaggio HTTP di risposta
     send(fd, message, strlen(message), 0);
 

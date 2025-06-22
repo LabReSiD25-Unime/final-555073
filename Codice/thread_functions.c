@@ -21,9 +21,7 @@ void *task_thread(event_t *arg){
         //Se riceve n byte elaboriamo la richiesta
         buffer[n] = '\0';
         char *message = buffer;
-        //printf("Dati disponibili in lettura\n");
         while(*message != '\0'){
-            //printf("Socket %d = \n------------------------------\n%s\n------------------------------\n", arg->socket_fd, message);
             //Effettua il parsing della richiesta
             if(!parse(&message, &req, &res)){
                 //Se la richiesta non presenta errori di sintassi viene elaborata
@@ -31,7 +29,7 @@ void *task_thread(event_t *arg){
             }
             //Invia una risposta al client
             http_send(&res, arg->socket_fd);
-            //Se è necessario, chiude la connessione
+            //Se è richiesto, chiude la connessione
             if((strcmp(res.connection,"close") == 0) || (strcmp(req.connection,"close") == 0)){
                 epoll_remove(arg->epoll_fd,arg->socket_fd);
                 free(arg);
