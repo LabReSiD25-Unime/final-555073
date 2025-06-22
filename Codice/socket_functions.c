@@ -31,7 +31,7 @@ void socket_bind(int socket_fd, struct sockaddr_in *addr, socklen_t addr_len){
 
 //Imposta il socket in ascolto
 void socket_listen(int socket_fd){
-    if(listen(socket_fd, MAX_EVENTS) < 0){
+    if(listen(socket_fd, SOMAXCONN) < 0){
         perror("listening failed");
         close(socket_fd);
         exit(EXIT_FAILURE);
